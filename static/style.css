@@ -1,0 +1,369 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    padding: 24px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.header {
+    padding: 24px 28px;
+    border-bottom: 1px solid #e8e8e8;
+    background: #ffffff;
+}
+
+.header h1 {
+    font-size: 1.75rem;
+    font-weight: 500;
+    color: #222;
+    margin-bottom: 4px;
+}
+
+.header p {
+    font-size: 0.9rem;
+    color: #888;
+}
+
+.controls {
+    padding: 16px 28px;
+    background: #fafafa;
+    border-bottom: 1px solid #e8e8e8;
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.controls-left {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.save-status {
+    font-size: 0.85rem;
+    color: #4caf50;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.control-group label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+select, button {
+    padding: 8px 16px;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+select:hover, button:hover {
+    border-color: #999;
+}
+
+button {
+    background: #ffffff;
+    color: #333;
+    font-weight: 500;
+}
+
+button:hover {
+    background: #f0f0f0;
+}
+
+.loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: #aaa;
+    font-size: 0.9rem;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #e0e0e0;
+    border-top-color: #aaa;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    padding: 20px 28px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.grades-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    min-width: 700px;
+}
+
+.grades-table th {
+    text-align: center;
+    padding: 12px 8px;
+    font-weight: 500;
+    color: #666;
+    border-bottom: 1px solid #e8e8e8;
+    background: #ffffff;
+    font-size: 0.8rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.grades-table td {
+    padding: 8px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.grades-table tr:hover td {
+    background-color: #f9f9f9;
+}
+
+.student-name {
+    font-weight: 500;
+    color: #222;
+    text-align: left;
+    background: #ffffff;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+}
+
+.grade-cell {
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    min-width: 60px;
+}
+
+.grade-cell:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.grade-5 {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.grade-4 {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+.grade-3 {
+    background-color: #fff8e1;
+    color: #f57f17;
+}
+
+.grade-2 {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.grade-absent {
+    background-color: #f5f5f5;
+    color: #999;
+    font-style: italic;
+}
+
+.grade-excused {
+    background-color: #e8eaf6;
+    color: #5c6bc0;
+    font-style: italic;
+}
+
+.grade-empty {
+    background-color: #ffffff;
+    color: #ccc;
+}
+
+.stats {
+    padding: 16px 28px;
+    background: #fafafa;
+    border-top: 1px solid #e8e8e8;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.stat-label {
+    color: #888;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: #333;
+}
+
+.error-message {
+    background: #ffebee;
+    color: #c62828;
+    padding: 16px;
+    margin: 20px 28px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    animation: fadeIn 0.2s;
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 20% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 300px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    animation: slideIn 0.2s;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e8e8e8;
+    font-weight: 500;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.grade-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.grade-btn {
+    padding: 12px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border: 1px solid #d0d0d0;
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.grade-btn:hover {
+    transform: scale(1.02);
+}
+
+.grade-btn-5:hover { background: #e8f5e9; border-color: #4caf50; }
+.grade-btn-4:hover { background: #e3f2fd; border-color: #2196f3; }
+.grade-btn-3:hover { background: #fff8e1; border-color: #ff9800; }
+.grade-btn-2:hover { background: #ffebee; border-color: #f44336; }
+
+.absent-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e8e8e8;
+}
+
+.absent-btn {
+    flex: 1;
+    padding: 10px;
+    background: #f5f5f5;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.absent-btn:hover {
+    background: #e0e0e0;
+}
+
+.modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid #e8e8e8;
+    text-align: right;
+}
+
+.close-btn {
+    padding: 8px 16px;
+    background: #f5f5f5;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+@media (max-width: 640px) {
+    body { padding: 16px; }
+    .header, .controls, .table-wrapper, .stats {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    .grades-table { font-size: 0.75rem; }
+    .grade-cell { min-width: 50px; }
+}

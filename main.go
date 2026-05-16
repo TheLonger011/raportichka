@@ -52,7 +52,7 @@ func main() {
 	}
 	studentsPerGroup := map[string][]string{}
 	for gname := range groupSubjects {
-		students := make([]string, 12)
+		students := make([]string, 5)
 		for i := range students {
 			students[i] = "Ученик " + strconv.Itoa(i+1)
 		}

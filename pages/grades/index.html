@@ -30,12 +30,17 @@
 
 <div class="page-wrap">
     <div class="breadcrumb">
-        <span class="crumb" onclick="window.location.href='/'">Группы</span>
+        <span class="crumb" onclick="goGroups()">Группы</span>
         <span class="sep">›</span>
-        <span class="crumb" id="bcGroup" onclick="window.location.href='/'"></span>
+        <span class="crumb" id="bcGroup" onclick="goSubjects()"></span>
         <span class="sep">›</span>
         <span class="cur" id="bcSubject"></span>
     </div>
+
+    <button class="btn-back" onclick="goSubjects()">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        <span id="backLabel">Назад</span>
+    </button>
 
     <div class="grades-controls">
         <select id="yearSel">
@@ -113,9 +118,23 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        const theme = localStorage.getItem('theme') || 'light';
-        updateThemeIcon(theme);
+        updateThemeIcon(localStorage.getItem('theme') || 'light');
     });
+
+
+    function goSubjects() {
+        const raw = sessionStorage.getItem('gradeCtx');
+        if (raw) {
+            const ctx = JSON.parse(raw);
+            sessionStorage.setItem('restoreGroup', JSON.stringify(ctx.group));
+        }
+        window.location.href = '/';
+    }
+
+    function goGroups() {
+        sessionStorage.removeItem('restoreGroup');
+        window.location.href = '/';
+    }
 </script>
 <script src="/pages/grades/grades.js"></script>
 </body>

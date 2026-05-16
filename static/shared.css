@@ -35,6 +35,8 @@ body {
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     transition: background .2s, color .2s;
+    overscroll-behavior-x: none;
+    overflow-x: hidden;
 }
 
 .nav {
@@ -49,6 +51,7 @@ body {
     z-index: 100;
     gap: 8px;
     transition: background .2s, border-color .2s;
+    overscroll-behavior-x: none;
 }
 
 .nav-brand {
@@ -60,11 +63,12 @@ body {
     letter-spacing: -.01em;
     margin-right: 32px;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .nav-brand em { color: var(--accent); font-style: normal; }
 
-.nav-links { display: flex; align-items: center; gap: 4px; flex: 1; }
+.nav-links { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
 
 .nav-link {
     display: flex;
@@ -79,6 +83,7 @@ body {
     transition: all .15s;
     border: 1px solid transparent;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .nav-link svg {
@@ -98,7 +103,7 @@ body {
     font-weight: 600;
 }
 
-.nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
 .btn-theme {
     width: 38px; height: 38px;
@@ -129,6 +134,7 @@ body {
 .breadcrumb {
     display: flex; align-items: center; gap: 7px;
     font-size: 14px; color: var(--muted); margin-bottom: 26px;
+    flex-wrap: wrap;
 }
 .breadcrumb .sep { opacity: .4; }
 .breadcrumb .crumb { cursor: pointer; transition: color .15s; }
@@ -217,8 +223,32 @@ body {
 }
 .btn-cancel:hover { background: var(--border); color: var(--text); }
 
-@media (max-width: 768px) {
-    .page-wrap { padding: 24px 18px; }
-    .nav { padding: 0 18px; }
-    .nav-brand { margin-right: 14px; font-size: 13px; }
+@media (max-width: 640px) {
+    .page-wrap { padding: 20px 16px; }
+
+    .nav {
+        padding: 0 14px;
+        height: 58px;
+    }
+
+    .nav-brand {
+        font-size: 13px;
+        margin-right: 8px;
+    }
+
+    .nav-link {
+        padding: 8px 10px;
+        font-size: 0;
+        gap: 0;
+    }
+
+    .nav-link svg {
+        width: 20px; height: 20px;
+    }
+
+    .nav-stat { display: none; }
+
+    .modal-box { width: calc(100vw - 32px); }
+
+    .page-title { font-size: 19px; }
 }

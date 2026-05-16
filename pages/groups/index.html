@@ -78,8 +78,30 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        const theme = localStorage.getItem('theme') || 'light';
-        updateThemeIcon(theme);
+        updateThemeIcon(localStorage.getItem('theme') || 'light');
+    });
+</script>
+
+<script>
+    const _origInit = window.init;
+    document.addEventListener('DOMContentLoaded', function() {
+        const restoreRaw = sessionStorage.getItem('restoreGroup');
+        if (!restoreRaw) return;
+
+        const target = document.getElementById('groupsGrid');
+        const observer = new MutationObserver(function(mutations, obs) {
+            if (target.querySelector('.group-card')) {
+                obs.disconnect();
+                try {
+                    const group = JSON.parse(restoreRaw);
+                    sessionStorage.removeItem('restoreGroup');
+                    if (typeof selectGroup === 'function') {
+                        selectGroup(group.id);
+                    }
+                } catch(e) {}
+            }
+        });
+        observer.observe(target, { childList: true, subtree: true });
     });
 </script>
 <script src="/pages/groups/groups.js"></script>

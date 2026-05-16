@@ -18,210 +18,254 @@ func New(storagePath string) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-
 	if err := createTables(db); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-
 	return &Storage{db: db}, nil
 }
 
 func createTables(db *sql.DB) error {
-	createTableStudents := `
-	CREATE TABLE IF NOT EXISTS students (
-		id SERIAL PRIMARY KEY,
-		full_name TEXT NOT NULL UNIQUE
-	)`
-
-	if _, err := db.Exec(createTableStudents); err != nil {
-		return fmt.Errorf("failed to create students table: %w", err)
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS groups (
+			id   SERIAL PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE
+		)`,
+		`CREATE TABLE IF NOT EXISTS subjects (
+			id       SERIAL PRIMARY KEY,
+			name     TEXT NOT NULL,
+			group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+			UNIQUE (name, group_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS students (
+			id       SERIAL PRIMARY KEY,
+			full_name TEXT NOT NULL,
+			group_id  INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+			UNIQUE (full_name, group_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS ocenki (
+			id         SERIAL PRIMARY KEY,
+			student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+			subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+			lesson_date DATE NOT NULL,
+			grade      INT CHECK (grade >= 2 AND grade <= 5),
+			status     TEXT DEFAULT 'present',
+			UNIQUE (student_id, subject_id, lesson_date)
+		)`,
 	}
-
-	createTableOcenki := `
-	CREATE TABLE IF NOT EXISTS ocenki (
-		id SERIAL PRIMARY KEY,
-		student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-		lesson_date DATE NOT NULL,
-		grade INT CHECK (grade >= 2 AND grade <= 5),
-		status TEXT DEFAULT 'present',
-		UNIQUE (student_id, lesson_date)
-	)`
-
-	if _, err := db.Exec(createTableOcenki); err != nil {
-		return fmt.Errorf("failed to create ocenki table: %w", err)
+	for _, q := range queries {
+		if _, err := db.Exec(q); err != nil {
+			return fmt.Errorf("failed to exec: %w", err)
+		}
 	}
-
 	return nil
 }
 
-func (s *Storage) Close() error {
-	return s.db.Close()
+func (s *Storage) Close() error { return s.db.Close() }
+
+func (s *Storage) GetGroups() ([]map[string]interface{}, error) {
+	rows, err := s.db.Query(`SELECT id, name FROM groups ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name string
+		rows.Scan(&id, &name)
+		result = append(result, map[string]interface{}{"id": id, "name": name})
+	}
+	return result, nil
 }
 
-func (s *Storage) AddStudent(fullName string) (int, error) {
-	const op = "storage.postgres.AddStudent"
-
+func (s *Storage) AddGroup(name string) (int, error) {
 	var id int
-	query := `INSERT INTO students (full_name) VALUES ($1) ON CONFLICT (full_name) DO NOTHING RETURNING id`
-	err := s.db.QueryRow(query, fullName).Scan(&id)
+	err := s.db.QueryRow(
+		`INSERT INTO groups (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING id`,
+		name,
+	).Scan(&id)
+	return id, err
+}
+
+func (s *Storage) GetSubjectsByGroup(groupID int) ([]map[string]interface{}, error) {
+	rows, err := s.db.Query(`SELECT id, name FROM subjects WHERE group_id=$1 ORDER BY name`, groupID)
 	if err != nil {
-		query = `SELECT id FROM students WHERE full_name = $1`
-		err = s.db.QueryRow(query, fullName).Scan(&id)
-		if err != nil {
-			return 0, fmt.Errorf("%s: %w", op, err)
-		}
+		return nil, err
 	}
-	return id, nil
+	defer rows.Close()
+	var result []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name string
+		rows.Scan(&id, &name)
+		result = append(result, map[string]interface{}{"id": id, "name": name})
+	}
+	return result, nil
 }
 
-func (s *Storage) LoadStudentsFromFile(students []string) error {
-	for _, name := range students {
-		_, err := s.AddStudent(name)
-		if err != nil {
-			return fmt.Errorf("failed to add student %s: %w", name, err)
-		}
-	}
-	return nil
+func (s *Storage) AddSubject(name string, groupID int) (int, error) {
+	var id int
+	err := s.db.QueryRow(
+		`INSERT INTO subjects (name, group_id) VALUES ($1, $2) ON CONFLICT (name, group_id) DO UPDATE SET name=EXCLUDED.name RETURNING id`,
+		name, groupID,
+	).Scan(&id)
+	return id, err
 }
 
-func (s *Storage) SetGrade(studentID int, lessonDate string, grade int) error {
-	const op = "storage.postgres.SetGrade"
-
-	query := `
-		INSERT INTO ocenki (student_id, lesson_date, grade, status)
-		VALUES ($1, $2, $3, 'present')
-		ON CONFLICT (student_id, lesson_date)
-		DO UPDATE SET grade = EXCLUDED.grade, status = 'present'
-	`
-	_, err := s.db.Exec(query, studentID, lessonDate, grade)
+func (s *Storage) GetStudentsByGroup(groupID int) ([]map[string]interface{}, error) {
+	rows, err := s.db.Query(
+		`SELECT id, full_name FROM students WHERE group_id=$1 ORDER BY id`, groupID,
+	)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
-	return nil
+	defer rows.Close()
+	var result []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name string
+		rows.Scan(&id, &name)
+		result = append(result, map[string]interface{}{"id": id, "full_name": name})
+	}
+	return result, nil
 }
 
-func (s *Storage) SetAbsent(studentID int, lessonDate string, reason string) error {
-	const op = "storage.postgres.SetAbsent"
-
-	query := `
-		INSERT INTO ocenki (student_id, lesson_date, grade, status)
-		VALUES ($1, $2, NULL, $3)
-		ON CONFLICT (student_id, lesson_date)
-		DO UPDATE SET grade = NULL, status = EXCLUDED.status
-	`
-	_, err := s.db.Exec(query, studentID, lessonDate, reason)
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-	return nil
+func (s *Storage) AddStudent(fullName string, groupID int) (int, error) {
+	var id int
+	err := s.db.QueryRow(
+		`INSERT INTO students (full_name, group_id) VALUES ($1, $2)
+		 ON CONFLICT (full_name, group_id) DO UPDATE SET full_name=EXCLUDED.full_name RETURNING id`,
+		fullName, groupID,
+	).Scan(&id)
+	return id, err
 }
 
-func (s *Storage) GetGrade(year int, month int) ([]map[string]interface{}, error) {
-	const op = "storage.postgres.GetGrade"
-
+func (s *Storage) GetGrades(groupID, subjectID, year, month int) ([]map[string]interface{}, error) {
 	firstDay := fmt.Sprintf("%d-%02d-01", year, month)
 
 	var daysCount int
-	queryDays := `
-		SELECT EXTRACT(DAY FROM ($1::date + INTERVAL '1 month - 1 day'))::int
-	`
-	err := s.db.QueryRow(queryDays, firstDay).Scan(&daysCount)
+	err := s.db.QueryRow(
+		`SELECT EXTRACT(DAY FROM ($1::date + INTERVAL '1 month - 1 day'))::int`, firstDay,
+	).Scan(&daysCount)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 
-	studentsQuery := `
-		SELECT id, full_name
-		FROM students
-		ORDER BY id ASC
-	`
-
-	rows, err := s.db.Query(studentsQuery)
+	rows, err := s.db.Query(
+		`SELECT id, full_name FROM students WHERE group_id=$1 ORDER BY id`, groupID,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	defer rows.Close()
 
-	result := []map[string]interface{}{}
+	type gradeInfo struct {
+		grade  *int
+		status string
+	}
 
+	var result []map[string]interface{}
 	for rows.Next() {
-		var id int
-		var fullName string
-		err := rows.Scan(&id, &fullName)
+		var sid int
+		var name string
+		rows.Scan(&sid, &name)
+
+		gradeRows, err := s.db.Query(
+			`SELECT EXTRACT(DAY FROM lesson_date)::int, grade, status
+			 FROM ocenki
+			 WHERE student_id=$1 AND subject_id=$2
+			   AND lesson_date >= $3
+			   AND lesson_date < ($3::date + INTERVAL '1 month')`,
+			sid, subjectID, firstDay,
+		)
 		if err != nil {
 			continue
-		}
-
-		gradesQuery := `
-			SELECT EXTRACT(DAY FROM lesson_date)::int as day, grade, status
-			FROM ocenki
-			WHERE student_id = $1
-			AND lesson_date >= $2
-			AND lesson_date < ($2::date + INTERVAL '1 month')
-		`
-
-		gradeRows, err := s.db.Query(gradesQuery, id, firstDay)
-		if err != nil {
-			continue
-		}
-
-		type gradeInfo struct {
-			grade  *int
-			status string
 		}
 		grades := make(map[int]gradeInfo)
-
 		for gradeRows.Next() {
 			var day int
 			var grade sql.NullInt64
 			var status string
 			gradeRows.Scan(&day, &grade, &status)
-
-			var gradePtr *int
+			var gp *int
 			if grade.Valid {
 				g := int(grade.Int64)
-				gradePtr = &g
+				gp = &g
 			}
-
-			grades[day] = gradeInfo{
-				grade:  gradePtr,
-				status: status,
-			}
+			grades[day] = gradeInfo{grade: gp, status: status}
 		}
 		gradeRows.Close()
 
-		studentSheet := map[string]interface{}{
-			"student_id":   id,
-			"student_name": fullName,
+		row := map[string]interface{}{
+			"student_id":   sid,
+			"student_name": name,
 		}
-
-		for day := 1; day <= daysCount; day++ {
-			key := fmt.Sprintf("day_%d", day)
-			if info, exists := grades[day]; exists {
+		for d := 1; d <= daysCount; d++ {
+			key := fmt.Sprintf("day_%d", d)
+			if info, ok := grades[d]; ok {
 				if info.grade != nil {
-					studentSheet[key] = map[string]interface{}{
-						"value":  *info.grade,
-						"status": info.status,
-					}
+					row[key] = map[string]interface{}{"value": *info.grade, "status": info.status}
 				} else {
-					studentSheet[key] = map[string]interface{}{
-						"value":  nil,
-						"status": info.status,
-					}
+					row[key] = map[string]interface{}{"value": nil, "status": info.status}
 				}
 			} else {
-				studentSheet[key] = map[string]interface{}{
-					"value":  nil,
-					"status": "",
-				}
+				row[key] = map[string]interface{}{"value": nil, "status": ""}
 			}
 		}
-		result = append(result, studentSheet)
+		result = append(result, row)
 	}
-
 	return result, nil
+}
+
+func (s *Storage) SetGrade(studentID, subjectID int, lessonDate string, grade int) error {
+	_, err := s.db.Exec(
+		`INSERT INTO ocenki (student_id, subject_id, lesson_date, grade, status)
+		 VALUES ($1, $2, $3, $4, 'present')
+		 ON CONFLICT (student_id, subject_id, lesson_date)
+		 DO UPDATE SET grade=EXCLUDED.grade, status='present'`,
+		studentID, subjectID, lessonDate, grade,
+	)
+	return err
+}
+
+func (s *Storage) SetAbsent(studentID, subjectID int, lessonDate, reason string) error {
+	_, err := s.db.Exec(
+		`INSERT INTO ocenki (student_id, subject_id, lesson_date, grade, status)
+		 VALUES ($1, $2, $3, NULL, $4)
+		 ON CONFLICT (student_id, subject_id, lesson_date)
+		 DO UPDATE SET grade=NULL, status=EXCLUDED.status`,
+		studentID, subjectID, lessonDate, reason,
+	)
+	return err
+}
+
+func (s *Storage) ClearGrade(studentID, subjectID int, lessonDate string) error {
+	_, err := s.db.Exec(
+		`DELETE FROM ocenki WHERE student_id=$1 AND subject_id=$2 AND lesson_date=$3`,
+		studentID, subjectID, lessonDate,
+	)
+	return err
+}
+
+func (s *Storage) SeedData(groups map[string][]string, studentsPerGroup map[string][]string) error {
+	for gname, subs := range groups {
+		gid, err := s.AddGroup(gname)
+		if err != nil {
+			return fmt.Errorf("add group %s: %w", gname, err)
+		}
+		for _, sub := range subs {
+			if _, err := s.AddSubject(sub, gid); err != nil {
+				return fmt.Errorf("add subject %s: %w", sub, err)
+			}
+		}
+		for _, stname := range studentsPerGroup[gname] {
+			if _, err := s.AddStudent(stname, gid); err != nil {
+				return fmt.Errorf("add student %s: %w", stname, err)
+			}
+		}
+	}
+	return nil
 }

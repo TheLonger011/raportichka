@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Мои оценки — Журнал</title>
+    <link rel="stylesheet" href="/static/shared.css"/>
+    <style>
+        .student-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .student-controls select {
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-family: 'Geologica', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            transition: border-color .15s;
+        }
+
+        .student-controls select:hover { border-color: var(--muted); }
+
+        .subjects-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .subject-grade-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: box-shadow .15s, border-color .15s;
+        }
+
+        .subject-grade-card:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: rgba(61,108,231,.25);
+        }
+
+        .sgc-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted);
+            line-height: 1.3;
+        }
+
+        .sgc-avg {
+            font-family: 'Unbounded', sans-serif;
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .sgc-avg.avg-5 { color: #15803d; }
+        .sgc-avg.avg-4 { color: #1d4ed8; }
+        .sgc-avg.avg-3 { color: #b45309; }
+        .sgc-avg.avg-2 { color: #b91c1c; }
+        .sgc-avg.avg-none { color: var(--border); font-size: 24px; }
+
+        [data-theme="dark"] .sgc-avg.avg-5 { color: #4ade80; }
+        [data-theme="dark"] .sgc-avg.avg-4 { color: #60a5fa; }
+        [data-theme="dark"] .sgc-avg.avg-3 { color: #fbbf24; }
+        [data-theme="dark"] .sgc-avg.avg-2 { color: #f87171; }
+
+        .sgc-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            font-size: 12.5px;
+            color: var(--muted);
+        }
+
+        .sgc-abs {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sgc-abs svg {
+            width: 13px; height: 13px;
+            stroke: currentColor; fill: none;
+            stroke-width: 2; stroke-linecap: round;
+        }
+
+        .report-modal {
+            width: min(95vw, 900px);
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .report-modal .modal-body {
+            overflow: auto;
+            flex: 1;
+            padding: 0;
+        }
+
+        .report-table-wrap {
+            overflow: auto;
+            max-height: 60vh;
+        }
+
+        .rt {
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 600px;
+        }
+
+        .rt th, .rt td {
+            padding: 9px 7px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .rt thead th {
+            background: var(--surface);
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            font-size: 11px;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .rt thead th:first-child {
+            text-align: left;
+            min-width: 180px;
+            position: sticky;
+            left: 0;
+            z-index: 3;
+            background: var(--surface);
+        }
+
+        .rt tbody td:first-child {
+            text-align: left;
+            font-weight: 600;
+            background: var(--surface);
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            padding-left: 14px;
+            max-width: 200px;
+        }
+
+        .rt tbody td:last-child {
+            font-weight: 700;
+            background: var(--bg);
+        }
+
+        .rt-g5 { background: #dcfce7; color: #15803d; font-weight: 700; }
+        .rt-g4 { background: #dbeafe; color: #1d4ed8; font-weight: 700; }
+        .rt-g3 { background: #fef3c7; color: #b45309; font-weight: 700; }
+        .rt-g2 { background: #fee2e2; color: #b91c1c; font-weight: 700; }
+        .rt-abs { color: var(--muted); font-style: italic; font-size: 12px; }
+        .rt-exc { color: #7c5fa0; font-style: italic; font-size: 12px; }
+        .rt-empty { color: var(--border); }
+
+        [data-theme="dark"] .rt-g5 { background: #14532d; color: #4ade80; }
+        [data-theme="dark"] .rt-g4 { background: #1e3a5f; color: #60a5fa; }
+        [data-theme="dark"] .rt-g3 { background: #451a03; color: #fbbf24; }
+        [data-theme="dark"] .rt-g2 { background: #450a0a; color: #f87171; }
+
+        .student-name-badge {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--muted);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 7px 14px;
+            white-space: nowrap;
+        }
+
+        .btn-report {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 18px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Geologica', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s;
+        }
+        .btn-report:hover { background: #2d59d4; }
+        .btn-report svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+        @media (max-width: 640px) {
+            .subjects-cards { grid-template-columns: 1fr 1fr; }
+            .student-name-badge { display: none; }
+            .btn-report { padding: 9px 12px; font-size: 0; gap: 0; }
+            .btn-report svg { width: 20px; height: 20px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="nav">
+    <a class="nav-brand" href="/student"><em>журнал</em></a>
+    <div class="nav-links">
+        <a class="nav-link active" href="/student">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Оценки
+        </a>
+        <a class="nav-link" href="/schedule">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Расписание
+        </a>
+    </div>
+    <div class="nav-right">
+        <span class="student-name-badge" id="studentName"></span>
+        <button class="btn-report" onclick="openReport()">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Отчёт
+        </button>
+        <button class="btn-theme" onclick="toggleTheme()" title="Сменить тему">
+            <svg id="themeIcon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a href="/logout" style="display:inline-flex;align-items:center;" title="Выйти">
+            <button class="btn-theme">
+                <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+        </a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+    <div class="page-header" id="pageHeader">
+        <div class="page-title" id="pageTitle">Мои оценки</div>
+        <div class="page-sub" id="pageSub"></div>
+    </div>
+
+    <div class="student-controls">
+        <select id="yearSel" onchange="loadGrades()">
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+        </select>
+        <select id="monthSel" onchange="loadGrades()">
+            <option value="1">Январь</option>
+            <option value="2">Февраль</option>
+            <option value="3">Март</option>
+            <option value="4">Апрель</option>
+            <option value="5" selected>Май</option>
+            <option value="6">Июнь</option>
+            <option value="7">Июль</option>
+            <option value="8">Август</option>
+            <option value="9">Сентябрь</option>
+            <option value="10">Октябрь</option>
+            <option value="11">Ноябрь</option>
+            <option value="12">Декабрь</option>
+        </select>
+    </div>
+
+    <div id="cardsWrap">
+        <div class="loading"><div class="spinner"></div>Загрузка...</div>
+    </div>
+</div>
+
+<div class="overlay" id="reportOverlay" onclick="closeReport(event)">
+    <div class="modal-box report-modal">
+        <div class="modal-head">
+            <div class="m-name">Отчёт по оценкам</div>
+            <div class="m-date" id="reportDate"></div>
+        </div>
+        <div class="modal-body">
+            <div class="report-table-wrap" id="reportTableWrap">
+                <div class="loading"><div class="spinner"></div>Загрузка...</div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-cancel" onclick="document.getElementById('reportOverlay').classList.remove('on')">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const saved = localStorage.getItem('theme') || 'light';
+        if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        updateThemeIcon(saved);
+    })();
+
+    function toggleTheme() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const next = isDark ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+        const icon = document.getElementById('themeIcon');
+        if (theme === 'dark') {
+            icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+        } else {
+            icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+        }
+    }
+
+    let subjectsData = [];
+    const monthNames = ['','январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+
+    fetch('/api/me')
+        .then(r => { if (!r.ok) location.href='/login'; return r.json(); })
+        .then(me => {
+            document.getElementById('studentName').textContent = me.full_name;
+            document.getElementById('pageSub').textContent = me.group_name || '';
+        });
+
+    async function loadGrades() {
+        const year = document.getElementById('yearSel').value;
+        const month = document.getElementById('monthSel').value;
+        const wrap = document.getElementById('cardsWrap');
+        wrap.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка...</div>';
+
+        try {
+            const r = await fetch(`/api/student/grades?year=${year}&month=${month}`);
+            subjectsData = await r.json() || [];
+            renderCards(subjectsData, +month, +year);
+        } catch (e) {
+            wrap.innerHTML = '<div class="loading">Ошибка загрузки</div>';
+        }
+    }
+
+    function renderCards(data, month, year) {
+        if (!data || data.length === 0) {
+            document.getElementById('cardsWrap').innerHTML = '<div class="loading">Нет данных за этот месяц</div>';
+            return;
+        }
+
+        const html = data.map(subj => {
+            const avg = subj.avg;
+            let avgClass = 'avg-none', avgText = '—';
+            if (avg !== null && avg !== undefined) {
+                const r = Math.round(avg);
+                avgClass = 'avg-' + r;
+                avgText = avg.toFixed(2);
+            }
+            const abs = subj.abs_total || 0;
+            const exc = subj.abs_excused || 0;
+
+            return `
+            <div class="subject-grade-card">
+                <div class="sgc-name">${esc(subj.subject_name)}</div>
+                <div class="sgc-avg ${avgClass}">${avgText}</div>
+                <div class="sgc-footer">
+                    <div class="sgc-abs">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        ${abs > 0 ? `Пропуски: ${abs} ч.` : 'Нет пропусков'}
+                    </div>
+                    ${exc > 0 ? `<span style="color:#7c5fa0;font-size:12px">из них уваж. ${exc} ч.</span>` : ''}
+                </div>
+            </div>
+        `;
+        }).join('');
+
+        document.getElementById('cardsWrap').innerHTML = `<div class="subjects-cards">${html}</div>`;
+    }
+
+    function openReport() {
+        const overlay = document.getElementById('reportOverlay');
+        overlay.classList.add('on');
+        const month = +document.getElementById('monthSel').value;
+        const year = document.getElementById('yearSel').value;
+        document.getElementById('reportDate').textContent = `${monthNames[month]} ${year}`;
+        renderReportTable(subjectsData, month);
+    }
+
+    function closeReport(e) {
+        if (e.target === document.getElementById('reportOverlay')) {
+            document.getElementById('reportOverlay').classList.remove('on');
+        }
+    }
+
+    function renderReportTable(data, month) {
+        if (!data || data.length === 0) {
+            document.getElementById('reportTableWrap').innerHTML = '<div class="loading">Нет данных</div>';
+            return;
+        }
+
+        const daysSet = new Set();
+        data.forEach(subj => {
+            (subj.grades || []).forEach(g => daysSet.add(g.day));
+        });
+        const days = [...daysSet].sort((a, b) => a - b);
+
+        let html = '<table class="rt"><thead><tr>';
+        html += '<th>Предмет</th>';
+        days.forEach(d => html += `<th>${d}</th>`);
+        html += '<th>Ср.</th>';
+        html += '</tr></thead><tbody>';
+
+        data.forEach(subj => {
+            const byDay = {};
+            (subj.grades || []).forEach(g => byDay[g.day] = g);
+
+            html += `<tr><td>${esc(subj.subject_name)}</td>`;
+            days.forEach(d => {
+                const g = byDay[d];
+                if (!g) {
+                    html += '<td class="rt-empty">—</td>';
+                } else if (g.status === 'absent') {
+                    html += '<td class="rt-abs">Н</td>';
+                } else if (g.status === 'excused') {
+                    html += '<td class="rt-exc">УВ</td>';
+                } else if (g.value) {
+                    html += `<td class="rt-g${g.value}">${g.value}</td>`;
+                } else {
+                    html += '<td class="rt-empty">—</td>';
+                }
+            });
+
+            const avg = subj.avg !== null && subj.avg !== undefined ? subj.avg.toFixed(2) : '—';
+            html += `<td>${avg}</td></tr>`;
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('reportTableWrap').innerHTML = html;
+    }
+
+    function esc(s) {
+        return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    loadGrades();
+</script>
+</body>
+</html>

@@ -1,18 +1,9 @@
-// vedomost_ui.js
-// Подключить в grades_index.html после grades.js:
-//   <script src="/pages/grades/vedomost_ui.js"></script>
-//
-// Ожидает что ctx (из grades.js) уже доступен глобально:
-//   ctx = { group: { id, name }, subject: { id, name } }
-
 (function () {
-    // ─── Конфигурация ────────────────────────────────────────────────────────
 
     const DEFAULT_TOTAL_HOURS = 120;
     const DEFAULT_HEAD_TEACHER = '';
     const DEFAULT_DEPT_HEAD = '';
 
-    // ─── Инициализация ───────────────────────────────────────────────────────
 
     function injectButton() {
         const navRight = document.querySelector('.nav-right');
@@ -32,15 +23,12 @@
             Ведомость
         `;
         btn.onclick = openVedomostModal;
-        // Вставляем перед кнопкой темы
         const themeBtn = document.getElementById('themeBtn');
         navRight.insertBefore(btn, themeBtn);
     }
 
-    // ─── Модальное окно ──────────────────────────────────────────────────────
 
     function openVedomostModal() {
-        // Читаем ctx из grades.js
         const raw = sessionStorage.getItem('gradeCtx');
         if (!raw) { alert('Контекст группы не найден'); return; }
         const ctx = JSON.parse(raw);
@@ -48,7 +36,6 @@
         const year = +document.getElementById('yearSel').value;
         const month = +document.getElementById('monthSel').value;
 
-        // Загружаем предметы группы чтобы показать чекбоксы
         fetch(`/api/subjects?group_id=${ctx.group.id}`)
             .then(r => r.json())
             .then(subjects => renderModal(ctx, subjects, year, month))
@@ -59,8 +46,7 @@
         const existing = document.getElementById('vedomostOverlay');
         if (existing) existing.remove();
 
-        const monthNames = ['', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-            'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+        const monthNames = ['', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 
         const subjectCheckboxes = subjects.map(s => `
             <label class="vd-checkbox-row">
@@ -99,13 +85,11 @@
                             </div>
                             <div class="vd-field">
                                 <label>Классный руководитель</label>
-                                <input type="text" id="vdHeadTeacher" value="${DEFAULT_HEAD_TEACHER}" placeholder="Е.А. Дёмина">
+                                <input type="text" id="vdHeadTeacher" value="${DEFAULT_HEAD_TEACHER}">
                             </div>
                             <div class="vd-field">
                                 <label>Заведующий отделением</label>
-                                <input type="text" id="vdDeptHead" value="${DEFAULT_DEPT_HEAD}" placeholder="О.В. Пыхалова">
-                            </div>
-                        </div>
+                                <input type="text" id="vdDeptHead" value="${DEFAULT_DEPT_HEAD}">                        </div>
                     </div>
                 </div>
                 <div class="modal-foot" style="justify-content: space-between;">
@@ -121,8 +105,6 @@
         });
         document.body.appendChild(overlay);
     }
-
-    // ─── Глобальные функции (вызываются из inline onclick) ───────────────────
 
     window.closeVedomostModal = function () {
         const el = document.getElementById('vedomostOverlay');
@@ -169,7 +151,6 @@
                 const msg = await resp.text();
                 throw new Error(msg || resp.statusText);
             }
-            // Скачиваем файл
             const blob = await resp.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -194,6 +175,5 @@
         return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    // Запуск
     document.addEventListener('DOMContentLoaded', injectButton);
 })();

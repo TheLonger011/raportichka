@@ -3,6 +3,7 @@ let allFiles = { schedule: [], substitutions: [] };
 
 async function init() {
     await loadFiles();
+    adaptMobileButtons();
 }
 
 async function loadFiles() {
@@ -120,7 +121,76 @@ async function deleteFile(category, name) {
 
 function esc(s) {
     if (!s) return '';
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+function adaptMobileButtons() {
+    const syncBtn = document.getElementById('syncBtn');
+    if (!syncBtn) return;
+
+    const syncTextSpan = syncBtn.querySelector('.sync-text');
+
+    if (window.innerWidth <= 640) {
+        syncBtn.style.width = '38px';
+        syncBtn.style.height = '38px';
+        syncBtn.style.padding = '0';
+        syncBtn.style.fontSize = '0';
+        syncBtn.style.gap = '0';
+        syncBtn.style.justifyContent = 'center';
+        syncBtn.style.alignItems = 'center';
+        syncBtn.style.minWidth = '38px';
+
+        const svg = syncBtn.querySelector('svg');
+        if (svg) {
+            svg.style.width = '18px';
+            svg.style.height = '18px';
+            svg.style.margin = '0';
+        }
+
+        if (syncTextSpan) {
+            syncTextSpan.style.display = 'none';
+            syncTextSpan.style.visibility = 'hidden';
+        }
+
+        const syncStatus = document.getElementById('syncStatus');
+        if (syncStatus) {
+            syncStatus.style.display = 'none';
+        }
+    } else {
+        syncBtn.style.width = '';
+        syncBtn.style.height = '';
+        syncBtn.style.padding = '';
+        syncBtn.style.fontSize = '';
+        syncBtn.style.gap = '';
+        syncBtn.style.justifyContent = '';
+        syncBtn.style.alignItems = '';
+        syncBtn.style.minWidth = '';
+
+        const svg = syncBtn.querySelector('svg');
+        if (svg) {
+            svg.style.width = '';
+            svg.style.height = '';
+            svg.style.margin = '';
+        }
+
+        if (syncTextSpan) {
+            syncTextSpan.style.display = '';
+            syncTextSpan.style.visibility = '';
+        }
+
+        const syncStatus = document.getElementById('syncStatus');
+        if (syncStatus) {
+            syncStatus.style.display = '';
+        }
+    }
+}
+
+window.addEventListener('resize', function() {
+    adaptMobileButtons();
+});
+
+window.addEventListener('orientationchange', function() {
+    setTimeout(adaptMobileButtons, 100);
+});
 
 init();

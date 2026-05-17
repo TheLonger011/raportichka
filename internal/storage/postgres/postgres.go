@@ -54,6 +54,14 @@ func createTables(db *sql.DB) error {
 			status     TEXT DEFAULT 'present',
 			UNIQUE (student_id, subject_id, lesson_date)
 		)`,
+		`CREATE TABLE IF NOT EXISTS users (
+			id         SERIAL PRIMARY KEY,
+			full_name  TEXT NOT NULL,
+			role       TEXT NOT NULL CHECK (role IN ('teacher', 'student')),
+			group_id   INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+			password   TEXT NOT NULL,
+			UNIQUE (full_name, role, group_id)
+		)`,
 	}
 	for _, q := range queries {
 		if _, err := db.Exec(q); err != nil {

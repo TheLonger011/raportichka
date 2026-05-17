@@ -45,14 +45,14 @@ func main() {
 	defer storage.Close()
 
 	groupSubjects := map[string][]string{
-		"ИС-2-01": {"Арх. апп. средств", "Физ-ра", "МДК 05.01", "МДК 08.01", "Основы алгоритм.", "Теория вероят. и мат. статистика"},
+		"ИС-2-01": {"Арх. апп. средств", "Физ-ра", "МДК 05.01", "МДК 08.01", "Основы алгоритм.", "Теория вероят. и мат. статистика", "численные методы", "Операционные среды"},
 		"К-2-80":  {"МДК 02.01", "МДК 01.01", "Материал", "Ин. язык", "Инж. граф.", "БЖД"},
 		"ГД-3-03": {"МДК 02.02", "Физ-ра", "Ин. язык", "МДК 01.02", "Осн. материал."},
 		"ИС-2-02": {"Арх. апп. средств", "Физ-ра", "МДК 05.01", "МДК 08.01", "Основы алгоритм.", "Теория вероят. и мат. статистика"},
 	}
 	studentsPerGroup := map[string][]string{}
 	for gname := range groupSubjects {
-		students := make([]string, 5)
+		students := make([]string, 25)
 		for i := range students {
 			students[i] = "Ученик " + strconv.Itoa(i+1)
 		}
@@ -61,6 +61,11 @@ func main() {
 	if err := storage.SeedData(groupSubjects, studentsPerGroup); err != nil {
 		log.Printf("Seed warning: %v", err)
 	}
+	if err := storage.SeedUsers(); err != nil {
+		log.Printf("SeedUsers warning: %v", err)
+	}
+
+	sessions := NewSessionStore()
 
 	dl := schedule.New(scheduleDir, substitutionsDir, cfg.ScheduleKey, cfg.SubstitutionsKey, cfg.SyncIntervalHours)
 	dl.Start()
@@ -68,25 +73,49 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-
 	mux.Handle("/files/schedule/", http.StripPrefix("/files/schedule/", http.FileServer(http.Dir(scheduleDir))))
 	mux.Handle("/files/substitutions/", http.StripPrefix("/files/substitutions/", http.FileServer(http.Dir(substitutionsDir))))
-
 	mux.Handle("/pages/", http.StripPrefix("/pages/", http.FileServer(http.Dir("pages"))))
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		sess := sessions.GetSession(r)
+		if sess != nil {
+			if sess.Role == "student" {
+				http.Redirect(w, r, "/student", http.StatusFound)
+			} else {
+				http.Redirect(w, r, "/", http.StatusFound)
+			}
+			return
+		}
+		http.ServeFile(w, r, "pages/login/index.html")
+	})
+
+	mux.HandleFunc("/", RequireTeacher(sessions, func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "pages/groups/index.html")
-	})
+	}))
 
-	mux.HandleFunc("/grades", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/grades", RequireTeacher(sessions, func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "pages/grades/index.html")
-	})
+	}))
 
-	mux.HandleFunc("/schedule", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/schedule", RequireAuth(sessions, func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "pages/schedule/index.html")
+	}))
+
+	mux.HandleFunc("/student", RequireStudent(sessions, func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "pages/student/index.html")
+	}))
+
+	mux.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie(sessionCookie)
+		if err == nil {
+			sessions.Delete(c.Value)
+		}
+		sessions.ClearCookie(w)
+		http.Redirect(w, r, "/login", http.StatusFound)
 	})
 
-	mux.HandleFunc("/api/groups", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/groups-public", func(w http.ResponseWriter, r *http.Request) {
 		groups, err := storage.GetGroups()
 		if err != nil {
 			http.Error(w, err.Error(), 500)
@@ -95,7 +124,67 @@ func main() {
 		jsonResp(w, groups)
 	})
 
-	mux.HandleFunc("/api/subjects", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", 405)
+			return
+		}
+		var req struct {
+			Role     string `json:"role"`
+			FullName string `json:"full_name"`
+			Password string `json:"password"`
+			GroupID  *int   `json:"group_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "bad request", 400)
+			return
+		}
+
+		role := postgres.Role(req.Role)
+		user, err := storage.Login(req.FullName, req.Password, role, req.GroupID)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+
+		sess := &SessionData{
+			UserID:    user.ID,
+			FullName:  user.FullName,
+			Role:      string(user.Role),
+			GroupID:   user.GroupID,
+			GroupName: user.GroupName,
+		}
+		sid := sessions.Create(sess)
+		sessions.SetCookie(w, sid)
+
+		redirect := "/"
+		if user.Role == postgres.RoleStudent {
+			redirect = "/student"
+		}
+		jsonResp(w, map[string]string{"redirect": redirect})
+	})
+
+	mux.HandleFunc("/api/me", func(w http.ResponseWriter, r *http.Request) {
+		sess := sessions.GetSession(r)
+		if sess == nil {
+			http.Error(w, "unauthorized", 401)
+			return
+		}
+		jsonSession(w, sess)
+	})
+
+	mux.HandleFunc("/api/groups", RequireTeacher(sessions, func(w http.ResponseWriter, r *http.Request) {
+		groups, err := storage.GetGroups()
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		jsonResp(w, groups)
+	}))
+
+	mux.HandleFunc("/api/subjects", RequireAuth(sessions, func(w http.ResponseWriter, r *http.Request) {
 		gid, _ := strconv.Atoi(r.URL.Query().Get("group_id"))
 		subjects, err := storage.GetSubjectsByGroup(gid)
 		if err != nil {
@@ -103,9 +192,9 @@ func main() {
 			return
 		}
 		jsonResp(w, subjects)
-	})
+	}))
 
-	mux.HandleFunc("/api/students", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/students", RequireTeacher(sessions, func(w http.ResponseWriter, r *http.Request) {
 		gid, _ := strconv.Atoi(r.URL.Query().Get("group_id"))
 		students, err := storage.GetStudentsByGroup(gid)
 		if err != nil {
@@ -113,9 +202,9 @@ func main() {
 			return
 		}
 		jsonResp(w, students)
-	})
+	}))
 
-	mux.HandleFunc("/api/grades", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/grades", RequireTeacher(sessions, func(w http.ResponseWriter, r *http.Request) {
 		gid, _ := strconv.Atoi(r.URL.Query().Get("group_id"))
 		sid, _ := strconv.Atoi(r.URL.Query().Get("subject_id"))
 		year, _ := strconv.Atoi(r.URL.Query().Get("year"))
@@ -132,9 +221,9 @@ func main() {
 			return
 		}
 		jsonResp(w, grades)
-	})
+	}))
 
-	mux.HandleFunc("/api/set-grade", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/set-grade", RequireTeacher(sessions, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", 405)
 			return
@@ -162,7 +251,36 @@ func main() {
 			return
 		}
 		jsonResp(w, map[string]string{"status": "ok"})
-	})
+	}))
+
+	mux.HandleFunc("/api/student/grades", RequireStudent(sessions, func(w http.ResponseWriter, r *http.Request) {
+		sess := sessions.GetSession(r)
+		if sess.GroupID == nil {
+			http.Error(w, "no group", 400)
+			return
+		}
+		year, _ := strconv.Atoi(r.URL.Query().Get("year"))
+		month, _ := strconv.Atoi(r.URL.Query().Get("month"))
+		if year == 0 {
+			year = 2026
+		}
+		if month == 0 {
+			month = 5
+		}
+
+		studentID, err := storage.GetStudentIDByUserID(sess.UserID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		data, err := storage.GetStudentGradesAllSubjects(studentID, *sess.GroupID, year, month)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		jsonResp(w, data)
+	}))
 
 	mux.HandleFunc("/api/schedule/sync", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

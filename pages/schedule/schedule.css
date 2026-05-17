@@ -191,3 +191,38 @@
 
 .empty-state p { font-size: 15px; }
 .empty-state small { font-size: 13px; margin-top: 7px; display: block; }
+
+@media (max-width: 640px) {
+    .btn-sync {
+        width: 38px !important;
+        height: 38px !important;
+        padding: 0 !important;
+        background: var(--accent) !important;
+        border-radius: 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0 !important;
+        font-size: 0 !important;
+        min-width: 38px !important;
+    }
+
+    .btn-sync .sync-text {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+    }
+
+    .btn-sync svg {
+        width: 18px !important;
+        height: 18px !important;
+        margin: 0 !important;
+    }
+
+    .sync-status {
+        display: none !important;
+    }
+}

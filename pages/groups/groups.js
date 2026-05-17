@@ -71,6 +71,7 @@ function showGroups() {
     document.getElementById('view-subjects').style.display = 'none';
     document.getElementById('view-groups').style.display = '';
     curGroup = null;
+    closeVedomostGroupModal();
 }
 
 function goGrades(subjectId) {
@@ -78,6 +79,205 @@ function goGrades(subjectId) {
     sessionStorage.setItem('gradeCtx', JSON.stringify({ group: curGroup, subject }));
     window.location.href = '/grades';
 }
+
+function openVedomostGroupModal() {
+    const existing = document.getElementById('vedomostGroupOverlay');
+    if (existing) existing.remove();
+
+    const now = new Date();
+    const curMonth = now.getMonth() + 1;
+    const curYear = now.getFullYear();
+
+    const monthOptions = [
+        ['1','Январь'],['2','Февраль'],['3','Март'],['4','Апрель'],
+        ['5','Май'],['6','Июнь'],['7','Июль'],['8','Август'],
+        ['9','Сентябрь'],['10','Октябрь'],['11','Ноябрь'],['12','Декабрь'],
+    ].map(([v, l]) => `<option value="${v}"${+v === curMonth ? ' selected' : ''}>${l}</option>`).join('');
+
+    const yearOptions = [2025, 2026]
+        .map(y => `<option value="${y}"${y === curYear ? ' selected' : ''}>${y}</option>`).join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay on';
+    overlay.id = 'vedomostGroupOverlay';
+    overlay.innerHTML = `
+        <div class="modal-box" style="width:340px">
+            <div class="modal-head">
+                <div class="m-name">Ведомость группы</div>
+                <div class="m-date">${esc(curGroup.name)}</div>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                        <label style="font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Год</label>
+                        <select id="vdgYear" style="padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Geologica',sans-serif;font-size:15px;background:var(--surface);color:var(--text)">
+                            ${yearOptions}
+                        </select>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                        <label style="font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Месяц</label>
+                        <select id="vdgMonth" style="padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Geologica',sans-serif;font-size:15px;background:var(--surface);color:var(--text)">
+                            ${monthOptions}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot" style="justify-content:space-between">
+                <button class="btn-cancel" onclick="closeVedomostGroupModal()">Отмена</button>
+                <button class="btn-load" onclick="goToVedomostFull()">Открыть предметы →</button>
+            </div>
+        </div>
+    `;
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) closeVedomostGroupModal();
+    });
+    document.body.appendChild(overlay);
+}
+
+function closeVedomostGroupModal() {
+    const el = document.getElementById('vedomostGroupOverlay');
+    if (el) el.remove();
+}
+
+function goToVedomostFull() {
+    const year = +document.getElementById('vdgYear').value;
+    const month = +document.getElementById('vdgMonth').value;
+    closeVedomostGroupModal();
+
+    sessionStorage.setItem('vedomostCtx', JSON.stringify({
+        group: curGroup,
+        year,
+        month,
+    }));
+
+    openFullVedomostDialog(curGroup, year, month);
+}
+
+function openFullVedomostDialog(group, year, month) {
+    fetch(`/api/subjects?group_id=${group.id}`)
+        .then(r => r.json())
+        .then(subjects => renderFullVedomostModal(group, subjects, year, month))
+        .catch(() => alert('Не удалось загрузить предметы'));
+}
+
+function renderFullVedomostModal(group, subjects, year, month) {
+    const existing = document.getElementById('vedomostFullOverlay');
+    if (existing) existing.remove();
+
+    const monthNames = ['','январь','февраль','март','апрель','май','июнь','сентябрь','октябрь','ноябрь','декабрь'];
+
+    const subjectCheckboxes = subjects.map(s => `
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:9px;cursor:pointer;font-size:14px;font-weight:500;color:var(--text);">
+            <input type="checkbox" name="subj" value="${s.id}" checked style="width:16px;height:16px;accent-color:var(--accent);">
+            <span>${esc(s.name)}</span>
+        </label>
+    `).join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay on';
+    overlay.id = 'vedomostFullOverlay';
+    overlay.innerHTML = `
+        <div class="modal-box" style="width:460px;max-width:calc(100vw - 32px)">
+            <div class="modal-head">
+                <div class="m-name">Ведомость · ${esc(group.name)}</div>
+                <div class="m-date">${monthNames[month]} ${year}</div>
+            </div>
+            <div class="modal-body" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Предметы</div>
+                    <div id="vdFullSubjects" style="display:flex;flex-direction:column;gap:6px">
+                        ${subjectCheckboxes}
+                    </div>
+                    <div style="display:flex;gap:8px;padding-left:2px;margin-top:4px">
+                        <button onclick="vdAllCheck(true)" style="background:none;border:none;font-family:'Geologica',sans-serif;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer">Все</button>
+                        <span style="color:var(--border)">·</span>
+                        <button onclick="vdAllCheck(false)" style="background:none;border:none;font-family:'Geologica',sans-serif;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer">Снять</button>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Параметры</div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                        <label style="font-size:12.5px;font-weight:600;color:var(--muted)">Учебных часов за месяц</label>
+                        <input type="number" id="vdFullHours" value="120" min="1" max="500" style="padding:9px 13px;border:1px solid var(--border);border-radius:9px;font-family:'Geologica',sans-serif;font-size:14px;background:var(--surface);color:var(--text);width:100%">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                        <label style="font-size:12.5px;font-weight:600;color:var(--muted)">Классный руководитель</label>
+                        <input type="text" id="vdFullHead" placeholder="" style="padding:9px 13px;border:1px solid var(--border);border-radius:9px;font-family:'Geologica',sans-serif;font-size:14px;background:var(--surface);color:var(--text);width:100%">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                        <label style="font-size:12.5px;font-weight:600;color:var(--muted)">Заведующий отделением</label>
+                        <input type="text" id="vdFullDept" placeholder="" style="padding:9px 13px;border:1px solid var(--border);border-radius:9px;font-family:'Geologica',sans-serif;font-size:14px;background:var(--surface);color:var(--text);width:100%">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot" style="justify-content:space-between">
+                <button class="btn-cancel" onclick="closeFullVedomost()">Отмена</button>
+                <button class="btn-load" id="vdFullBtn" onclick="downloadFullVedomost(${group.id},${year},${month})">Скачать .xlsx</button>
+            </div>
+        </div>
+    `;
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeFullVedomost(); });
+    document.body.appendChild(overlay);
+}
+
+window.vdAllCheck = function(v) {
+    document.querySelectorAll('#vdFullSubjects input[type=checkbox]').forEach(cb => cb.checked = v);
+};
+
+function closeFullVedomost() {
+    const el = document.getElementById('vedomostFullOverlay');
+    if (el) el.remove();
+}
+
+window.downloadFullVedomost = async function(groupId, year, month) {
+    const btn = document.getElementById('vdFullBtn');
+    btn.disabled = true;
+    btn.textContent = 'Генерация…';
+
+    const ids = [...document.querySelectorAll('#vdFullSubjects input[type=checkbox]:checked')]
+        .map(cb => +cb.value);
+
+    if (ids.length === 0) {
+        alert('Выберите хотя бы один предмет');
+        btn.disabled = false;
+        btn.textContent = 'Скачать .xlsx';
+        return;
+    }
+
+    const payload = {
+        group_id: groupId, year, month,
+        subject_ids: ids,
+        total_hours: +document.getElementById('vdFullHours').value || 120,
+        head_teacher: document.getElementById('vdFullHead').value.trim(),
+        dept_head: document.getElementById('vdFullDept').value.trim(),
+    };
+
+    try {
+        const resp = await fetch('/api/vedomost/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const cd = resp.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename="?([^"]+)"?/);
+        a.download = m ? m[1] : `vedomost_${year}_${month}.xlsx`;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        closeFullVedomost();
+    } catch (e) {
+        alert('Ошибка: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Скачать .xlsx';
+    }
+};
 
 function esc(s) {
     if (!s) return '';

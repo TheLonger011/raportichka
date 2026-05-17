@@ -1,4 +1,5 @@
 let ctx = null, modalCtx = null;
+let savedScrollPosition = { top: 0, left: 0 };
 
 function init() {
     const raw = sessionStorage.getItem('gradeCtx');
@@ -9,21 +10,53 @@ function init() {
     loadGrades();
 }
 
-async function loadGrades() {
+function saveScrollPosition() {
+    const wrap = document.querySelector('.table-wrap');
+    if (wrap) {
+        savedScrollPosition = {
+            top: wrap.scrollTop,
+            left: wrap.scrollLeft
+        };
+    }
+}
+
+function restoreScrollPosition() {
+    requestAnimationFrame(() => {
+        const wrap = document.querySelector('.table-wrap');
+        if (wrap) {
+            wrap.scrollTop = savedScrollPosition.top;
+            wrap.scrollLeft = savedScrollPosition.left;
+        }
+    });
+}
+
+async function loadGrades(preserveScroll = true) {
     const year = document.getElementById('yearSel').value;
     const month = document.getElementById('monthSel').value;
     const wrap = document.getElementById('gradesWrap');
+
+    if (preserveScroll) {
+        const oldWrap = document.querySelector('.table-wrap');
+        if (oldWrap) {
+            savedScrollPosition = {
+                top: oldWrap.scrollTop,
+                left: oldWrap.scrollLeft
+            };
+        }
+    }
+
     wrap.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка...</div>';
+
     try {
         const r = await fetch(`/api/grades?group_id=${ctx.group.id}&subject_id=${ctx.subject.id}&year=${year}&month=${month}`);
         const data = await r.json();
-        renderTable(data, year, month);
+        renderTable(data, year, month, preserveScroll);
     } catch (e) {
         wrap.innerHTML = '<div class="loading">Ошибка загрузки</div>';
     }
 }
 
-function renderTable(data, year, month) {
+function renderTable(data, year, month, preserveScroll = true) {
     if (!data || data.length === 0) {
         document.getElementById('gradesWrap').innerHTML = '<div class="loading">Нет данных</div>';
         return;
@@ -37,37 +70,49 @@ function renderTable(data, year, month) {
     let totalG = 0, sumG = 0;
     const cnt = { 5: 0, 4: 0, 3: 0, 2: 0 };
 
-    let html = '<div class="table-wrap"><table class="gt"><thead><tr><th>Студент</th>';
+    let html = '<div class="table-wrap"><table class="gt"><thead><tr>';
+    html += '<th>Студент</th>';
     days.forEach(d => html += `<th>${d}</th>`);
-    html += '<th>Ср.</th></tr></thead><tbody>';
+    html += '<th>Ср.</th>';
+    html += '</tr></thead><tbody>';
 
-    data.forEach(st => {
+    for (const st of data) {
         let sum = 0, c = 0;
-        let cells = '';
-        days.forEach(d => {
+
+        html += '<tr>';
+
+        html += `<td class="student-name">${esc(st.student_name)}</td>`;
+
+        for (const d of days) {
             const cell = st[`day_${d}`];
             const date = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            let cls = 'empty', txt = '—';
+
             if (cell && cell.value && cell.status === 'present') {
-                cls = 'grade-cell g' + cell.value; txt = cell.value;
-                sum += cell.value; c++;
-                totalG++; sumG += cell.value;
-                if (cnt[cell.value] !== undefined) cnt[cell.value]++;
+                const val = cell.value;
+                html += `<td class="grade-cell g${val}" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">${val}</td>`;
+                sum += val;
+                c++;
+                totalG++;
+                sumG += val;
+                if (cnt[val] !== undefined) cnt[val]++;
             } else if (cell && cell.status === 'absent') {
-                cls = 'absent'; txt = 'Н';
+                html += `<td class="absent" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">Н</td>`;
             } else if (cell && cell.status === 'excused') {
-                cls = 'excused'; txt = 'УВ';
+                html += `<td class="excused" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">УВ</td>`;
             } else {
-                cls = 'empty';
+                html += `<td class="empty" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">—</td>`;
             }
-            cells += `<td class="${cls}" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">${txt}</td>`;
-        });
+        }
+
         const avg = c > 0 ? (sum / c).toFixed(2) : '—';
-        html += `<tr><td>${esc(st.student_name)}</td>${cells}<td>${avg}</td></tr>`;
-    });
+        html += `<td class="avg-cell">${avg}</td>`;
+
+        html += '</tr>';
+    }
+
+    html += '</tbody></table></div>';
 
     const avgAll = totalG > 0 ? (sumG / totalG).toFixed(2) : '—';
-    html += '</tbody></table></div>';
     html += `<div class="stats-row">
         <div class="stat-item"><span class="stat-label">Оценок:</span><span class="stat-value">${totalG}</span></div>
         <div class="stat-item"><span class="stat-label">Средний балл:</span><span class="stat-value">${avgAll}</span></div>
@@ -78,6 +123,10 @@ function renderTable(data, year, month) {
     </div>`;
 
     document.getElementById('gradesWrap').innerHTML = html;
+
+    if (preserveScroll && (savedScrollPosition.top > 0 || savedScrollPosition.left > 0)) {
+        setTimeout(() => restoreScrollPosition(), 10);
+    }
 }
 
 function openModal(sid, name, date, d, m, y) {
@@ -98,26 +147,59 @@ function overlayClick(e) {
 
 async function saveGrade(g) {
     if (!modalCtx) return;
-    await apiSet({ student_id: modalCtx.sid, subject_id: ctx.subject.id, date: modalCtx.date, grade: g, status: 'present' });
-    closeModal(); loadGrades(); msg('Оценка сохранена ✓');
+    saveScrollPosition();
+    await apiSet({
+        student_id: modalCtx.sid,
+        subject_id: ctx.subject.id,
+        date: modalCtx.date,
+        grade: g,
+        status: 'present'
+    });
+    closeModal();
+    await loadGrades(true);
+    msg('Оценка сохранена ✓');
 }
 
 async function saveAbsent(status) {
     if (!modalCtx) return;
-    await apiSet({ student_id: modalCtx.sid, subject_id: ctx.subject.id, date: modalCtx.date, grade: null, status });
-    closeModal(); loadGrades(); msg(status === 'absent' ? 'Отмечено: Н ✓' : 'Отмечено: УВ ✓');
+    saveScrollPosition();
+    await apiSet({
+        student_id: modalCtx.sid,
+        subject_id: ctx.subject.id,
+        date: modalCtx.date,
+        grade: null,
+        status
+    });
+    closeModal();
+    await loadGrades(true);
+    msg(status === 'absent' ? 'Отмечено: Н ✓' : 'Отмечено: УВ ✓');
 }
 
 async function clearGrade() {
     if (!modalCtx) return;
-    await apiSet({ student_id: modalCtx.sid, subject_id: ctx.subject.id, date: modalCtx.date, grade: null, status: '' });
-    closeModal(); loadGrades(); msg('Очищено ✓');
+    saveScrollPosition();
+    await apiSet({
+        student_id: modalCtx.sid,
+        subject_id: ctx.subject.id,
+        date: modalCtx.date,
+        grade: null,
+        status: ''
+    });
+    closeModal();
+    await loadGrades(true);
+    msg('Очищено ✓');
 }
 
 async function apiSet(body) {
     try {
-        await fetch('/api/set-grade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    } catch (e) { msg('❌ Ошибка сохранения'); }
+        await fetch('/api/set-grade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+    } catch (e) {
+        msg('❌ Ошибка сохранения');
+    }
 }
 
 let msgTimer;

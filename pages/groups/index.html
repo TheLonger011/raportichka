@@ -6,6 +6,7 @@
     <title>Группы — Журнал</title>
     <link rel="stylesheet" href="/static/shared.css"/>
     <link rel="stylesheet" href="/pages/groups/groups.css"/>
+    <link rel="stylesheet" href="/pages/grades/vedomost_ui.css">
 </head>
 <body>
 <nav class="nav">
@@ -21,10 +22,16 @@
         </a>
     </div>
     <div class="nav-right">
+        <span id="saveMsg" class="save-msg"></span>
         <span class="nav-stat" id="navStat"></span>
         <button class="btn-theme" id="themeBtn" onclick="toggleTheme()" title="Сменить тему">
             <svg id="themeIcon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
+        <a href="/logout" style="display:inline-flex;align-items:center;" title="Выйти">
+            <button class="btn-theme">
+                <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+        </a>
     </div>
 </nav>
 
@@ -83,7 +90,6 @@
 </script>
 
 <script>
-    const _origInit = window.init;
     document.addEventListener('DOMContentLoaded', function() {
         const restoreRaw = sessionStorage.getItem('restoreGroup');
         if (!restoreRaw) return;
@@ -107,3 +113,4 @@
 <script src="/pages/groups/groups.js"></script>
 </body>
 </html>
+

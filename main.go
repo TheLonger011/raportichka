@@ -52,7 +52,7 @@ func main() {
 	}
 	studentsPerGroup := map[string][]string{}
 	for gname := range groupSubjects {
-		students := make([]string, 25)
+		students := make([]string, 5)
 		for i := range students {
 			students[i] = "Ученик " + strconv.Itoa(i+1)
 		}
@@ -104,6 +104,10 @@ func main() {
 
 	mux.HandleFunc("/student", RequireStudent(sessions, func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "pages/student/index.html")
+	}))
+
+	mux.HandleFunc("/vedomost", RequireTeacher(sessions, func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "pages/vedomost/index.html")
 	}))
 
 	mux.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
@@ -337,6 +341,8 @@ func main() {
 		}
 		jsonResp(w, map[string]string{"status": "ok"})
 	})
+
+	mux.HandleFunc("/api/vedomost/generate", RequireTeacher(sessions, makeHandleVedomost(storage)))
 
 	log.Println("http://localhost:8800")
 	log.Fatal(http.ListenAndServe(":8800", mux))

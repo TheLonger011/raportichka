@@ -1,4 +1,4 @@
 .PHONY: build run clean fmt test
 
 run:
-	go run main.go
+	@go run .

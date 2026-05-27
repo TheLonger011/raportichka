@@ -21,20 +21,6 @@ type User struct {
 	GroupName string
 }
 
-func CreateAuthTables(db *sql.DB) error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id         SERIAL PRIMARY KEY,
-			full_name  TEXT NOT NULL,
-			role       TEXT NOT NULL CHECK (role IN ('teacher', 'student')),
-			group_id   INTEGER REFERENCES groups(id) ON DELETE SET NULL,
-			password   TEXT NOT NULL,
-			UNIQUE (full_name, role, group_id)
-		)
-	`)
-	return err
-}
-
 func (s *Storage) Login(fullName, password string, role Role, groupID *int) (*User, error) {
 	query := `
 		SELECT u.id, u.full_name, u.role, u.group_id, g.name

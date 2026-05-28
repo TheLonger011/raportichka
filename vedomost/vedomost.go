@@ -1,4 +1,4 @@
-package main
+package vedomost
 
 import (
 	"encoding/json"
@@ -61,7 +61,7 @@ func roundGrade(avg float64) int {
 	return int(math.Floor(avg + 0.5))
 }
 
-func makeHandleVedomost(storage *postgres.Storage) http.HandlerFunc {
+func MakeHandleVedomost(storage *postgres.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", 405)

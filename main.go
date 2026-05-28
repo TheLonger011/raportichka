@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"raportichka/internal/schedule"
 	"raportichka/internal/storage/postgres"
+	"raportichka/vedomost"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
@@ -49,10 +50,12 @@ func main() {
 		"К-2-80":  {"МДК 02.01", "МДК 01.01", "Материал", "Ин. язык", "Инж. граф.", "БЖД"},
 		"ГД-3-03": {"МДК 02.02", "Физ-ра", "Ин. язык", "МДК 01.02", "Осн. материал."},
 		"ИС-2-02": {"Арх. апп. средств", "Физ-ра", "МДК 05.01", "МДК 08.01", "Основы алгоритм.", "Теория вероят. и мат. статистика"},
+		"ЭМ-2-02": {"Электро техника", "Физ-ра", "Ин. язык"},
+		"ПС-1-17": {"Адм.география", "Информатика", "Физика", "ОПД", "История Коми", "математика", "Русский язык", "Химия", "История", "Родная литература", "география", "Обществознание"},
 	}
 	studentsPerGroup := map[string][]string{}
 	for gname := range groupSubjects {
-		students := make([]string, 5)
+		students := make([]string, 9)
 		for i := range students {
 			students[i] = "Ученик " + strconv.Itoa(i+1)
 		}
@@ -342,7 +345,7 @@ func main() {
 		jsonResp(w, map[string]string{"status": "ok"})
 	})
 
-	mux.HandleFunc("/api/vedomost/generate", RequireTeacher(sessions, makeHandleVedomost(storage)))
+	mux.HandleFunc("/api/vedomost/generate", RequireTeacher(sessions, vedomost.MakeHandleVedomost(storage)))
 
 	log.Println("http://localhost:8800")
 	log.Fatal(http.ListenAndServe(":8800", mux))

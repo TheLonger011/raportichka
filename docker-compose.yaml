@@ -1,0 +1,30 @@
+services:
+  raportichka-postgres:
+    image: postgres:18.1-bookworm
+    container_name: raportichka-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-raportichka}
+    volumes:
+      - ./out/postgres:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    restart: always
+
+  raportichka-app:
+    build: .
+    container_name: raportichka-app
+    depends_on:
+      - raportichka-postgres
+    environment:
+      - STORAGE_PATH=host=raportichka-postgres port=5432 user=${POSTGRES_USER:-postgres} password=${POSTGRES_PASSWORD:-postgres} dbname=${POSTGRES_DB:-raportichka} sslmode=disable
+      - SCHEDULE_KEY=${SCHEDULE_KEY}
+      - SUBSTITUTIONS_KEY=${SUBSTITUTIONS_KEY}
+      - SYNC_INTERVAL_HOURS=${SYNC_INTERVAL_HOURS:-1}
+    ports:
+      - "8800:8800"
+    volumes:
+      - ./downloads:/app/downloads
+      - ./vedomost/template.xlsx:/app/vedomost/template.xlsx:ro
+    restart: always

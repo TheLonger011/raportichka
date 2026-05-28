@@ -1,2 +1,4 @@
 vedomost/template.xlsx
 .idea
+out
+.env

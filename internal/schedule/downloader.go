@@ -10,17 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/TheLonger011/raportichka/internal/domain"
 )
 
 const yadiskAPI = "https://cloud-api.yandex.net/v1/disk/public/resources"
-
-type FileInfo struct {
-	Name     string    `json:"name"`
-	Size     int64     `json:"size"`
-	Modified time.Time `json:"modified"`
-	Path     string    `json:"path"`
-	Type     string    `json:"type"`
-}
 
 type Downloader struct {
 	scheduleDir      string
@@ -39,6 +33,9 @@ func New(scheduleDir, substitutionsDir, scheduleKey, substitutionsKey string, in
 		intervalHours:    intervalHours,
 	}
 }
+
+func (d *Downloader) ScheduleDir() string      { return d.scheduleDir }
+func (d *Downloader) SubstitutionsDir() string { return d.substitutionsDir }
 
 func (d *Downloader) Start() {
 	go func() {
@@ -89,8 +86,6 @@ func (d *Downloader) syncDir(publicKey, destDir string) error {
 type yadiskItem struct {
 	Name        string `json:"name"`
 	DownloadURL string `json:"file"`
-	MediaType   string `json:"media_type"`
-	MimeType    string `json:"mime_type"`
 }
 
 type yadiskResp struct {
@@ -103,7 +98,7 @@ func listPublicDir(publicKey string) ([]yadiskItem, error) {
 	params := url.Values{}
 	params.Set("public_key", publicKey)
 	params.Set("limit", "100")
-	params.Set("fields", "_embedded.items.name,_embedded.items.file,_embedded.items.media_type,_embedded.items.mime_type")
+	params.Set("fields", "_embedded.items.name,_embedded.items.file")
 
 	resp, err := http.Get(yadiskAPI + "?" + params.Encode())
 	if err != nil {
@@ -140,16 +135,16 @@ func downloadFile(fileURL, destPath string) error {
 	return err
 }
 
-func ListFiles(dir string) ([]FileInfo, error) {
+func ListFiles(dir string) ([]domain.FileInfo, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []FileInfo{}, nil
+			return []domain.FileInfo{}, nil
 		}
 		return nil, err
 	}
 
-	var files []FileInfo
+	var files []domain.FileInfo
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
@@ -158,14 +153,12 @@ func ListFiles(dir string) ([]FileInfo, error) {
 		if err != nil {
 			continue
 		}
-		ext := filepath.Ext(e.Name())
-		ftype := extToType(ext)
-		files = append(files, FileInfo{
+		files = append(files, domain.FileInfo{
 			Name:     e.Name(),
 			Size:     info.Size(),
 			Modified: info.ModTime(),
 			Path:     "/files/" + filepath.Base(dir) + "/" + e.Name(),
-			Type:     ftype,
+			Type:     extToType(filepath.Ext(e.Name())),
 		})
 	}
 	return files, nil

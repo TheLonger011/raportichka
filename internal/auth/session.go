@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"crypto/rand"
@@ -9,8 +9,10 @@ import (
 	"time"
 )
 
-const sessionCookie = "sid"
-const sessionTTL = 24 * time.Hour
+const (
+	SessionCookie = "sid"
+	sessionTTL    = 24 * time.Hour
+)
 
 type SessionData struct {
 	UserID    int
@@ -73,7 +75,7 @@ func (s *SessionStore) cleanup() {
 }
 
 func (s *SessionStore) GetSession(r *http.Request) *SessionData {
-	c, err := r.Cookie(sessionCookie)
+	c, err := r.Cookie(SessionCookie)
 	if err != nil {
 		return nil
 	}
@@ -82,7 +84,7 @@ func (s *SessionStore) GetSession(r *http.Request) *SessionData {
 
 func (s *SessionStore) SetCookie(w http.ResponseWriter, sid string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookie,
+		Name:     SessionCookie,
 		Value:    sid,
 		Path:     "/",
 		HttpOnly: true,
@@ -93,47 +95,14 @@ func (s *SessionStore) SetCookie(w http.ResponseWriter, sid string) {
 
 func (s *SessionStore) ClearCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:   sessionCookie,
+		Name:   SessionCookie,
 		Value:  "",
 		Path:   "/",
 		MaxAge: -1,
 	})
 }
 
-func RequireTeacher(sessions *SessionStore, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		sess := sessions.GetSession(r)
-		if sess == nil || sess.Role != "teacher" {
-			http.Redirect(w, r, "/login", http.StatusFound)
-			return
-		}
-		next(w, r)
-	}
-}
-
-func RequireStudent(sessions *SessionStore, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		sess := sessions.GetSession(r)
-		if sess == nil || sess.Role != "student" {
-			http.Redirect(w, r, "/login", http.StatusFound)
-			return
-		}
-		next(w, r)
-	}
-}
-
-func RequireAuth(sessions *SessionStore, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		sess := sessions.GetSession(r)
-		if sess == nil {
-			http.Redirect(w, r, "/login", http.StatusFound)
-			return
-		}
-		next(w, r)
-	}
-}
-
-func jsonSession(w http.ResponseWriter, sess *SessionData) {
+func WriteJSON(w http.ResponseWriter, sess *SessionData) {
 	type resp struct {
 		UserID    int    `json:"user_id"`
 		FullName  string `json:"full_name"`

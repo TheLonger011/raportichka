@@ -253,3 +253,63 @@ body {
 
     .page-title { font-size: 19px; }
 }
+
+.btn-primary {
+    padding: 10px 22px;
+    background: var(--accent);
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    font-family: 'Geologica', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    transition: all .15s;
+}
+
+.btn-primary:hover {
+    background: #2d59d4;
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.btn-danger {
+    padding: 10px 22px;
+    background: #ef4444;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    font-family: 'Geologica', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    transition: all .15s;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-danger:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+[data-theme="dark"] .btn-primary {
+    background: #5580f0;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background: #3d6ce7;
+}
+
+[data-theme="dark"] .btn-danger {
+    background: #dc2626;
+}
+
+[data-theme="dark"] .btn-danger:hover {
+    background: #b91c1c;
+}

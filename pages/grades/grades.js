@@ -13,10 +13,7 @@ function init() {
 function saveScrollPosition() {
     const wrap = document.querySelector('.table-wrap');
     if (wrap) {
-        savedScrollPosition = {
-            top: wrap.scrollTop,
-            left: wrap.scrollLeft
-        };
+        savedScrollPosition = { top: wrap.scrollTop, left: wrap.scrollLeft };
     }
 }
 
@@ -31,24 +28,21 @@ function restoreScrollPosition() {
 }
 
 async function loadGrades(preserveScroll = true) {
-    const year = document.getElementById('yearSel').value;
+    const year  = document.getElementById('yearSel').value;
     const month = document.getElementById('monthSel').value;
-    const wrap = document.getElementById('gradesWrap');
+    const wrap  = document.getElementById('gradesWrap');
 
     if (preserveScroll) {
         const oldWrap = document.querySelector('.table-wrap');
         if (oldWrap) {
-            savedScrollPosition = {
-                top: oldWrap.scrollTop,
-                left: oldWrap.scrollLeft
-            };
+            savedScrollPosition = { top: oldWrap.scrollTop, left: oldWrap.scrollLeft };
         }
     }
 
     wrap.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка...</div>';
 
     try {
-        const r = await fetch(`/api/grades?group_id=${ctx.group.id}&subject_id=${ctx.subject.id}&year=${year}&month=${month}`);
+        const r    = await fetch(`/api/grades?group_id=${ctx.group.id}&subject_id=${ctx.subject.id}&year=${year}&month=${month}`);
         const data = await r.json();
         renderTable(data, year, month, preserveScroll);
     } catch (e) {
@@ -62,7 +56,17 @@ function renderTable(data, year, month, preserveScroll = true) {
         return;
     }
 
-    const days = Object.keys(data[0])
+    function getCells(row) {
+        if (row.days && typeof row.days === 'object') return row.days;
+        const obj = {};
+        for (const k of Object.keys(row)) {
+            if (k.startsWith('day_')) obj[k] = row[k];
+        }
+        return obj;
+    }
+
+    const firstCells = getCells(data[0]);
+    const days = Object.keys(firstCells)
         .filter(k => k.startsWith('day_'))
         .map(k => +k.split('_')[1])
         .sort((a, b) => a - b);
@@ -77,36 +81,33 @@ function renderTable(data, year, month, preserveScroll = true) {
     html += '</tr></thead><tbody>';
 
     for (const st of data) {
+        const cells = getCells(st);
         let sum = 0, c = 0;
-
         html += '<tr>';
-
         html += `<td class="student-name">${esc(st.student_name)}</td>`;
 
         for (const d of days) {
-            const cell = st[`day_${d}`];
+            const cell = cells[`day_${d}`];
             const date = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const sid  = st.student_id;
+            const sname = esc(st.student_name);
 
-            if (cell && cell.value && cell.status === 'present') {
+            if (cell && cell.value != null && cell.status === 'present') {
                 const val = cell.value;
-                html += `<td class="grade-cell g${val}" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">${val}</td>`;
-                sum += val;
-                c++;
-                totalG++;
-                sumG += val;
+                html += `<td class="grade-cell g${val}" onclick="openModal(${sid},'${sname}','${date}',${d},${month},${year})">${val}</td>`;
+                sum += val; c++; totalG++; sumG += val;
                 if (cnt[val] !== undefined) cnt[val]++;
             } else if (cell && cell.status === 'absent') {
-                html += `<td class="absent" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">Н</td>`;
+                html += `<td class="absent" onclick="openModal(${sid},'${sname}','${date}',${d},${month},${year})">Н</td>`;
             } else if (cell && cell.status === 'excused') {
-                html += `<td class="excused" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">УВ</td>`;
+                html += `<td class="excused" onclick="openModal(${sid},'${sname}','${date}',${d},${month},${year})">УВ</td>`;
             } else {
-                html += `<td class="empty" onclick="openModal(${st.student_id},'${esc(st.student_name)}','${date}',${d},${month},${year})">—</td>`;
+                html += `<td class="empty" onclick="openModal(${sid},'${sname}','${date}',${d},${month},${year})">—</td>`;
             }
         }
 
         const avg = c > 0 ? (sum / c).toFixed(2) : '—';
         html += `<td class="avg-cell">${avg}</td>`;
-
         html += '</tr>';
     }
 
@@ -148,13 +149,7 @@ function overlayClick(e) {
 async function saveGrade(g) {
     if (!modalCtx) return;
     saveScrollPosition();
-    await apiSet({
-        student_id: modalCtx.sid,
-        subject_id: ctx.subject.id,
-        date: modalCtx.date,
-        grade: g,
-        status: 'present'
-    });
+    await apiSet({ student_id: modalCtx.sid, subject_id: ctx.subject.id, date: modalCtx.date, grade: g, status: 'present' });
     closeModal();
     await loadGrades(true);
     msg('Оценка сохранена ✓');
@@ -163,13 +158,7 @@ async function saveGrade(g) {
 async function saveAbsent(status) {
     if (!modalCtx) return;
     saveScrollPosition();
-    await apiSet({
-        student_id: modalCtx.sid,
-        subject_id: ctx.subject.id,
-        date: modalCtx.date,
-        grade: null,
-        status
-    });
+    await apiSet({ student_id: modalCtx.sid, subject_id: ctx.subject.id, date: modalCtx.date, grade: null, status });
     closeModal();
     await loadGrades(true);
     msg(status === 'absent' ? 'Отмечено: Н ✓' : 'Отмечено: УВ ✓');
@@ -178,13 +167,7 @@ async function saveAbsent(status) {
 async function clearGrade() {
     if (!modalCtx) return;
     saveScrollPosition();
-    await apiSet({
-        student_id: modalCtx.sid,
-        subject_id: ctx.subject.id,
-        date: modalCtx.date,
-        grade: null,
-        status: ''
-    });
+    await apiSet({ student_id: modalCtx.sid, subject_id: ctx.subject.id, date: modalCtx.date, grade: null, status: '' });
     closeModal();
     await loadGrades(true);
     msg('Очищено ✓');
@@ -212,7 +195,7 @@ function msg(text) {
 
 function esc(s) {
     if (!s) return '';
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
 }
 
 init();

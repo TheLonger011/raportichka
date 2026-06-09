@@ -116,6 +116,11 @@ func (s *Storage) SeedData(groups map[string][]string, studentsPerGroup map[stri
 	return nil
 }
 
+func (s *Storage) DeleteStudent(studentID int) error {
+	_, err := s.db.Exec(`DELETE FROM students WHERE id = $1`, studentID)
+	return err
+}
+
 func (s *Storage) IsEmpty() (bool, error) {
 	var count int
 	err := s.db.QueryRow(`SELECT COUNT(*) FROM groups`).Scan(&count)

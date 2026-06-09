@@ -62,6 +62,9 @@ func (h *Handler) Register(mux *http.ServeMux, scheduleDir, substitutionsDir str
 	mux.HandleFunc("/api/schedule/delete", h.handleScheduleDelete)
 
 	mux.HandleFunc("/api/vedomost/generate", auth.RequireTeacher(h.sessions, h.handleVedomost))
+
+	mux.HandleFunc("/api/students/add", auth.RequireTeacher(h.sessions, h.handleAddStudent))
+	mux.HandleFunc("/api/students/delete", auth.RequireTeacher(h.sessions, h.handleDeleteStudent))
 }
 
 func (h *Handler) handlePage(path string) http.HandlerFunc {

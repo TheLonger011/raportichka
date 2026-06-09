@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Группы — Журнал</title>
-    <link rel="stylesheet" href="/static/shared.css"/>
+    <link rel="stylesheet" href="/pages/static/shared.css"/>
     <link rel="stylesheet" href="/pages/groups/groups.css"/>
     <link rel="stylesheet" href="/pages/grades/vedomost_ui.css">
 </head>
@@ -51,12 +51,41 @@
             <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
             Все группы
         </button>
-        <div class="page-header">
-            <div class="page-title" id="subjPageTitle"></div>
-            <div class="page-sub">Выберите предмет</div>
+
+        <div class="page-header" style="margin-bottom:24px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                <div>
+                    <div class="page-title" id="subjPageTitle"></div>
+                    <div class="page-sub">Выберите предмет для журнала</div>
+                </div>
+            </div>
         </div>
-        <div class="subjects-grid" id="subjectsGrid">
-            <div class="loading"><div class="spinner"></div>Загрузка...</div>
+
+        <div class="group-detail-layout">
+
+            <div class="subjects-panel">
+                <div class="panel-title">Предметы</div>
+                <div class="subjects-grid" id="subjectsGrid">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+
+            <div class="students-panel">
+                <div class="students-panel-head">
+                    <div class="students-panel-title">
+                        Студенты
+                        <span class="students-count-badge" id="studentsCount">0</span>
+                    </div>
+                    <button class="btn-add-student" onclick="openAddStudentModal()">
+                        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Добавить
+                    </button>
+                </div>
+                <div class="students-list" id="studentsList">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -101,9 +130,7 @@
                 try {
                     const group = JSON.parse(restoreRaw);
                     sessionStorage.removeItem('restoreGroup');
-                    if (typeof selectGroup === 'function') {
-                        selectGroup(group.id);
-                    }
+                    if (typeof selectGroup === 'function') selectGroup(group.id);
                 } catch(e) {}
             }
         });
@@ -113,4 +140,3 @@
 <script src="/pages/groups/groups.js"></script>
 </body>
 </html>
-

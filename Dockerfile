@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-rc-alpine AS builder
 
 WORKDIR /app
 
@@ -24,9 +24,7 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     python3 \
-    py3-pip \
-    && pip3 install --no-cache-dir openpyxl \
-    && apk del py3-pip
+    py3-openpyxl
 
 COPY --from=migrate-cli /usr/local/bin/migrate /usr/local/bin/migrate
 
@@ -34,14 +32,12 @@ WORKDIR /app
 
 COPY --from=builder /app/raportichka .
 
-COPY --chown=65534:65534 pages ./pages
-COPY --chown=65534:65534 static ./static
-COPY --chown=65534:65534 vedomost ./vedomost
-COPY --chown=65534:65534 config ./config
-COPY --chown=65534:65534 migrations ./migrations
+COPY pages ./pages
+COPY vedomost ./vedomost
+COPY config ./config
+COPY migrations ./migrations
 
-RUN mkdir -p downloads/schedule downloads/substitutions && \
-    chown -R 65534:65534 downloads
+RUN mkdir -p static downloads/schedule downloads/substitutions
 
 USER 65534
 
